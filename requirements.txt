@@ -1,5 +1,6 @@
 safetensors
 git+https://github.com/huggingface/diffusers.git
+gradio_logsview@https://huggingface.co/spaces/cocktailpeanut/gradio_logsview/resolve/main/gradio_logsview-0.0.17-py3-none-any.whl
 gradio==4.44.0
 gradio-logsview>=0.1.1
 transformers>=4.30.0
