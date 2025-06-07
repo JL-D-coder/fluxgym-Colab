@@ -31,9 +31,10 @@ def load_captioning(uploaded_files, concept_sentence):
         )
     elif len(uploaded_images) > MAX_IMAGES:
         raise gr.Error(f"For now, only {MAX_IMAGES} or less images are allowed for training")
+    
     # Update for the captioning_area
-    # for _ in range(3):
     updates.append(gr.update(visible=True))
+    
     # Update visibility and image for each captioning row and image
     for i in range(1, MAX_IMAGES + 1):
         # Determine if the current row and image should be visible
@@ -54,7 +55,7 @@ def load_captioning(uploaded_files, concept_sentence):
                     corresponding_caption = file.read()
 
         # Update value of captioning area
-        text_value = corresponding_caption if visible and corresponding_caption else concept_sentence if visible and concept_sentence else None
+        text_value = corresponding_caption if visible and corresponding_caption else concept_sentence if visible and concept_sentence else ""
         updates.append(gr.update(value=text_value, visible=visible))
 
     # Update for the sample caption area
@@ -93,7 +94,6 @@ def create_dataset(destination_folder, size, *inputs):
         resize_image(new_image_path, new_image_path, size)
 
         # copy the captions
-
         original_caption = inputs[index + 1]
 
         image_file_name = os.path.basename(new_image_path)
@@ -105,7 +105,6 @@ def create_dataset(destination_folder, size, *inputs):
 
     print(f"destination_folder {destination_folder}")
     return destination_folder
-
 
 def run_captioning(images, concept_sentence, *captions):
     print(f"run_captioning")
@@ -162,11 +161,11 @@ def recursive_update(d, u):
             d[k] = v
     return d
 
-
 def resolve_path(p):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     norm_path = os.path.normpath(os.path.join(current_dir, p))
     return f"\"{norm_path}\""
+
 def resolve_path_without_quotes(p):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     norm_path = os.path.normpath(os.path.join(current_dir, p))
@@ -187,9 +186,7 @@ def gen_sh(
     sample_prompts,
     sample_every_n_steps,
 ):
-
     print(f"gen_sh: network_dim:{network_dim}, max_train_epochs={max_train_epochs}, save_every_n_epochs={save_every_n_epochs}, timestep_sampling={timestep_sampling}, guidance_scale={guidance_scale}, vram={vram}, sample_prompts={sample_prompts}, sample_every_n_steps={sample_every_n_steps}")
-
 
     line_break = "\\"
     file_type = "sh"
@@ -286,20 +283,23 @@ keep_tokens = 1
 
 def update_total_steps(max_train_epochs, num_repeats, images):
     try:
-        num_images = len(images)
+        num_images = len(images) if images else 0
         total_steps = max_train_epochs * num_images * num_repeats
         print(f"max_train_epochs={max_train_epochs} num_images={num_images}, num_repeats={num_repeats}, total_steps={total_steps}")
         return gr.update(value = total_steps)
     except:
-        print("")
+        return gr.update(value = 0)
 
 def get_samples():
     try:
         samples_path = resolve_path_without_quotes('outputs/sample')
-        files = [os.path.join(samples_path, file) for file in os.listdir(samples_path)]
-        files.sort(key=lambda file: os.path.getctime(file), reverse=True)
-        print(f"files={files}")
-        return files
+        if os.path.exists(samples_path):
+            files = [os.path.join(samples_path, file) for file in os.listdir(samples_path)]
+            files.sort(key=lambda file: os.path.getctime(file), reverse=True)
+            print(f"files={files}")
+            return files
+        else:
+            return []
     except:
         return []
 
@@ -393,83 +393,28 @@ def loaded():
 def update_sample(concept_sentence):
     return gr.update(value=concept_sentence)
 
-theme = gr.themes.Monochrome(
-    text_size=gr.themes.Size(lg="18px", md="15px", sm="13px", xl="22px", xs="12px", xxl="24px", xxs="9px"),
-    font=[gr.themes.GoogleFont("Source Sans Pro"), "ui-sans-serif", "system-ui", "sans-serif"],
-)
+# Simplified theme and CSS
+theme = gr.themes.Soft()
 css = """
-@keyframes rotate {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
-}
 h1{font-family: georgia; font-style: italic; font-weight: bold; font-size: 30px; letter-spacing: -1px;}
 h3{margin-top: 0}
 .tabitem{border: 0px}
 .group_padding{}
-nav{position: fixed; top: 0; left: 0; right: 0; z-index: 1000; text-align: center; padding: 10px; box-sizing: border-box; display: flex; align-items: center; backdrop-filter: blur(10px); }
-nav button { background: none; color: firebrick; font-weight: bold; border: 2px solid firebrick; padding: 5px 10px; border-radius: 5px; font-size: 14px; }
-nav img { height: 40px; width: 40px; border-radius: 40px; }
-nav img.rotate { animation: rotate 2s linear infinite; }
-.flexible { flex-grow: 1; }
-.tast-details { margin: 10px 0 !important; }
-.toast-wrap { bottom: var(--size-4) !important; top: auto !important; border: none !important; backdrop-filter: blur(10px); }
-.toast-title, .toast-text, .toast-icon, .toast-close { color: black !important; font-size: 14px; }
-.toast-body { border: none !important; }
-#terminal { box-shadow: none !important; margin-bottom: 25px; background: rgba(0,0,0,0.03); }
-#terminal .generating { border: none !important; }
-#terminal label { position: absolute !important; }
-#container { margin-top: 50px; }
-.hidden { display: none !important; }
-.codemirror-wrapper .cm-line { font-size: 12px !important; }
 """
 
+# Simplified JavaScript
 js = """
 function() {
-    let autoscroll = document.querySelector("#autoscroll")
-    if (window.iidxx) {
-        window.clearInterval(window.iidxx);
-    }
-    window.iidxx = window.setInterval(function() {
-        let text=document.querySelector(".codemirror-wrapper .cm-line").innerText.trim()
-        let img = document.querySelector("#logo")
-        if (text.length > 0) {
-            autoscroll.classList.remove("hidden")
-            if (autoscroll.classList.contains("on")) {
-                autoscroll.textContent = "Autoscroll ON"
-                window.scrollTo(0, document.body.scrollHeight, { behavior: "smooth" });
-                img.classList.add("rotate")
-            } else {
-                autoscroll.textContent = "Autoscroll OFF"
-                img.classList.remove("rotate")
-            }
-        }
-    }, 500);
-    console.log("autoscroll", autoscroll)
-    autoscroll.addEventListener("click", (e) => {
-        autoscroll.classList.toggle("on")
-    })
+    console.log("App loaded");
 }
 """
 
-with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
+with gr.Blocks(theme=theme, css=css, fill_width=True) as demo:
     output_components = []
+    
     with gr.Row():
-        gr.HTML("""<nav>
-    <img id='logo' src='/file=icon.png' width='80' height='80'>
-    <div class='flexible'></div>
-    <button id='autoscroll' class='on hidden'></button>
-</nav>
-""")
-    with gr.Row(elem_id='container'):
         with gr.Column():
-            gr.Markdown(
-                """# Step 1. LoRA Info
-<p style="margin-top:0">Configure your LoRA train settings.</p>
-""", elem_classes="group_padding")
+            gr.Markdown("# Step 1. LoRA Info")
             lora_name = gr.Textbox(
                 label="The name of your LoRA",
                 info="This has to be a unique name",
@@ -487,27 +432,19 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             total_steps = gr.Number(0, interactive=False, label="Expected training steps")
             sample_prompts = gr.Textbox("", lines=5, label="Sample Image Prompts (Separate with new lines)", interactive=True)
             sample_every_n_steps = gr.Number(0, precision=0, label="Sample Image Every N Steps", interactive=True)
+            
             with gr.Accordion("Advanced options", open=False):
-                #resolution = gr.Number(label="Resolution", value=512, minimum=512, maximum=1024, step=512)
                 seed = gr.Number(label="Seed", value=42, interactive=True)
                 workers = gr.Number(label="Workers", value=2, interactive=True)
                 learning_rate = gr.Textbox(label="Learning Rate", value="8e-4", interactive=True)
-                #learning_rate = gr.Number(label="Learning Rate", value=4e-4, minimum=1e-6, maximum=1e-3, step=1e-6)
-
                 save_every_n_epochs = gr.Number(label="Save every N epochs", value=4, interactive=True)
-
                 guidance_scale = gr.Number(label="Guidance Scale", value=1.0, interactive=True)
-
                 timestep_sampling = gr.Textbox(label="Timestep Sampling", value="shift", interactive=True)
-
-    #            steps = gr.Number(label="Steps", value=1000, minimum=1, maximum=10000, step=1)
                 network_dim = gr.Number(label="LoRA Rank", value=4, minimum=4, maximum=128, step=4, interactive=True)
                 resolution = gr.Number(value=512, precision=0, label="Resize dataset images")
+                
         with gr.Column():
-            gr.Markdown(
-                """# Step 2. Dataset
-<p style="margin-top:0">Make sure the captions include the trigger word.</p>
-""", elem_classes="group_padding")
+            gr.Markdown("# Step 2. Dataset")
             with gr.Group():
                 images = gr.File(
                     file_types=["image", ".txt"],
@@ -520,7 +457,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             with gr.Group(visible=False) as captioning_area:
                 do_captioning = gr.Button("Add AI captions with Florence-2")
                 output_components.append(captioning_area)
-                #output_components = [captioning_area]
+                
                 caption_list = []
                 for i in range(1, MAX_IMAGES + 1):
                     locals()[f"captioning_row_{i}"] = gr.Row(visible=False)
@@ -544,20 +481,19 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                     output_components.append(locals()[f"image_{i}"])
                     output_components.append(locals()[f"caption_{i}"])
                     caption_list.append(locals()[f"caption_{i}"])
+                    
         with gr.Column():
-            gr.Markdown(
-                """# Step 3. Train
-<p style="margin-top:0">Press start to start training.</p>
-""", elem_classes="group_padding")
+            gr.Markdown("# Step 3. Train")
             start = gr.Button("Start training", visible=False)
             output_components.append(start)
-            train_script = gr.Textbox(label="Train script", max_lines=100, interactive=True)
-            train_config = gr.Textbox(label="Train config", max_lines=100, interactive=True)
+            train_script = gr.Textbox(label="Train script", lines=20, interactive=True)
+            train_config = gr.Textbox(label="Train config", lines=20, interactive=True)
+            
     with gr.Row():
-        terminal = LogsView(label="Train log", elem_id="terminal")
+        terminal = LogsView(label="Train log")
+        
     with gr.Row():
         gallery = gr.Gallery(get_samples, label="Samples", every=10, columns=6)
-
 
     dataset_folder = gr.State()
 
@@ -579,7 +515,6 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         sample_every_n_steps,
     ]
 
-
     for listener in listeners:
         listener.change(update, inputs=listeners, outputs=[train_script, train_config, dataset_folder])
 
@@ -600,9 +535,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         outputs=[captioning_area, start]
     )
 
-
-    # update total steps
-
+    # Update total steps
     max_train_epochs.change(
         fn=update_total_steps,
         inputs=[max_train_epochs, num_repeats, images],
@@ -629,7 +562,6 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         inputs=[max_train_epochs, num_repeats, images],
         outputs=[total_steps]
     )
-
 
     concept_sentence.change(fn=update_sample, inputs=[concept_sentence], outputs=sample_prompts)
 
